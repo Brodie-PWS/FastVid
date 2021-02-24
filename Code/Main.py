@@ -7,6 +7,8 @@ from moviepy.editor import *
 from moviepy.video.fx.resize import resize
 from threading import *
 from PIL import ImageTk, Image
+import cv2
+import numpy as np
 
 LARGE_FONT= ("Verdana", 12)
 
@@ -47,7 +49,10 @@ class MainPage(tk.Frame):
         bg_im_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         create_video_button = tk.Button(self, fg='#FFFFFF', background='#000000', activebackground='#44DDFF', font=('Verdana', 12, 'bold italic'), activeforeground='white', text='Create New Video', padx=2, pady=2, command = self.create_video)
-        create_video_button.pack(pady=130,padx=10, side=tk.TOP, fill='y')
+        create_video_button.pack(pady=10,padx=10, side=tk.TOP, fill='y')
+
+        play_video_button = tk.Button(self, fg='#FFFFFF', background='#000000', activebackground='#44DDFF', font=('Verdana', 12, 'bold italic'), activeforeground='white', text='Play A Video', padx=2, pady=2, command = self.play_video)
+        play_video_button.pack(pady=0,padx=10, side=tk.TOP, fill='y', anchor='center')
 
     def create_video(self):
         selected_audio  = filedialog.askopenfilename(parent=self, initialdir='Resources/', title='Select Audio File')
@@ -109,6 +114,50 @@ class MainPage(tk.Frame):
             if visual_clip:
                 clip = visual_clip.set_audio(audio).set_duration(duration_s)
                 clip.write_videofile('Exports/Test.mp4', fps=30)
+
+    def play_video(self):
+            video_fpath = filedialog.askopenfilename(parent=self, initialdir='Exports/', title='Select A Video')
+            if video_fpath:
+                print(f'Playing Video: {video_fpath}')
+                video_window = VideoWindow(self, video_fpath)
+            else:
+                # Get list of all Txt files in Extracted Features directory
+                file_list =  glob.glob('Exports/*')
+                # Determine the latest file
+                try:
+                    latest_file = max(file_list, key=os.path.getctime)
+                except Exception as ex:
+                    messagebox.showinfo('Error!', 'There are no previous Predictions to show')
+                    return
+
+class VideoWindow(tk.Frame):
+    def __init__(self, parent, video_fpath):
+        tk.Frame.__init__(self, parent)
+        self.video_fpath = video_fpath
+        self.play_video()
+        # When everything done, release the capture
+        self.cap.release()
+        cv2.destroyAllWindows()
+
+    def play_video(self):
+        self.cap = cv2.VideoCapture(self.video_fpath)
+        still_playing = True
+
+        while(still_playing):
+            # Capture frame-by-frame
+            ret, frame = self.cap.read()
+
+            # Display the resulting frame
+            try:
+                cv2.imshow('Video', frame)
+            except Exception as ex:
+                print('Video Ended')
+                self.cap.release()
+                cv2.destroyAllWindows()
+                return
+
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                still_playing = False
 
 if __name__ == '__main__':
     root = tk.Tk()
