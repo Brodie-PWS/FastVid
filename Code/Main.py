@@ -111,8 +111,35 @@ class MainPage(tk.Frame):
             if custom_dims:
                 visual_clip = resize(visual_clip, (ui_width, ui_height))
 
+            response = messagebox.askquestion('Add Watermark', 'Do you want to add a Watermark?')
+            if response == 'yes':
+                watermark = filedialog.askopenfilename(parent=self, initialdir='Resources/', title='Select The Image For The Watermark')
+                watermark_type = filetype.guess(watermark)
+                watermark_mime = watermark_type.mime
+                if watermark:
+                    print(f'Adding Watermark: {watermark}')
+                    factor_table = {'50%': 2, '33%': 3, '25%': 4, '20%': 5}
+                    factor = 5
+                    factor =  simpledialog.askstring('Specify Scale of Watermark', 'Specify Scale of Watermark from [50%, 33%, 25%, 20%]')
+                    if isinstance(factor, str) and factor in factor_table.keys():
+                        factor = factor_table[factor]
+                        print(f'Watermark Scale set to [{factor}]')
+
+                    if 'image' in watermark_mime:
+                        watermark_clip = (ImageClip(watermark).
+                                         set_duration(duration_s).
+                                         resize((width/factor, height/factor)).
+                                         set_pos(('right','bottom')) )
+                    elif 'gif' in watermark_mime or 'video' in watermark_mime:
+                        watermark_clip = (VideoFileClip(watermark).
+                                         resize((width/factor, height/factor)).
+                                         set_pos(('right','bottom')) )
+                        watermark_clip = watermark_clip.fx(vfx.loop, duration=duration_s)
+
             if visual_clip:
                 clip = visual_clip.set_audio(audio).set_duration(duration_s)
+                if watermark_clip:
+                    clip = CompositeVideoClip([clip,watermark_clip])
                 clip.write_videofile('Exports/Test.mp4', fps=30)
 
     def play_video(self):
@@ -121,13 +148,11 @@ class MainPage(tk.Frame):
                 print(f'Playing Video: {video_fpath}')
                 video_window = VideoWindow(self, video_fpath)
             else:
-                # Get list of all Txt files in Extracted Features directory
                 file_list =  glob.glob('Exports/*')
-                # Determine the latest file
                 try:
                     latest_file = max(file_list, key=os.path.getctime)
                 except Exception as ex:
-                    messagebox.showinfo('Error!', 'There are no previous Predictions to show')
+                    messagebox.showinfo('Error!', 'Could Not Find A Video To Play')
                     return
 
 class VideoWindow(tk.Frame):
